@@ -7,93 +7,87 @@ define('PDF2_SUBMISSION_SIZE_FORMAT_B4', 2);
 
 defined('MOODLE_INTERNAL') || die();
 
-class block_pdf2submission extends block_base {
-   
-  function init() {
-    $this->title = 'pdf2submission';
-  }
-
-  //  function instance_allow_config() { return true; }
-
-  function get_content() {
-    global $USER, $DB, $CFG;
-	
-    if ($this->content !== NULL) {
-      return $this->content;
+class block_pdf2submission extends block_base
+{
+    function init() {
+        $this->title = get_string('pluginname', 'block_pdf2submission');
     }
+    
+    public function has_config() {
+        return true;
+    }
+    
+    public function instance_allow_config() {
+        return true;
+    }
+    
+    function get_content() {
+        global $USER, $DB, $PAGE, $CFG, $COURSE;
+        
+        if ($this->content !== null) {
+            return $this->content;
+        }
+        
+        if (empty($this->config)) {
+            $this->config = new stdClass();
+        }
+        
+        // init config
+        if (!isset($this->config->sizeformat)) {
+            $this->config->sizeformat = PDF2_SUBMISSION_SIZE_FORMAT_A4;
+        }
 
-    $course = $this->page->course; 
-    $context = get_context_instance(CONTEXT_COURSE, $course->id);
-    if ( !has_capability('mod/assignment:grade', $context) and $this->config->invisible ) {
-      return;
-    }
+        $context = context_course::instance($course->id);
+        if (!has_capability('mod/assignment:grade', $context) && $this->config->invisible) {
+            return;  // TODO: return what? null/false
+        }
+        
+        $names = $DB->get_records('role_assignments', array('contextid' => $context->id));
+        if (!has_capability('mod/assignment:grade', $context)){
+            $names = array((object)array('userid' => $USER->id));
+        }
+        
+        $items = $DB->get_records('assign', array('course' => $COURSE->id));
+        
+        $this->content = new stdClass();
+        $this->content->text .= '<form action="../blocks/pdf2submission/pdfgen.php" method="post">';
 
-    $names = $DB->get_records('role_assignments',array('contextid' => $context->id));
-    if (!has_capability('mod/assignment:grade', $context)){
-      $names = array((object)array('userid' => $USER->id));
-    }
-    // $this->content->text .= var_dump($context);
-    //    $items = $DB->get_records('assignment', array('course'=>$context->instanceid));
-    $items = $DB->get_records('assign', array('course'=>$context->instanceid));
-    $this->content->text .= '<form action="../blocks/pdf2submission/pdfgen.php" method="post">';
-    if($items!=null){
-      $this->content->text .= 'Cover sheets for:<br/>';
-      $this->content->text .='<select name="itemid">';
-      foreach($items as $item){
-	$this->content->text .='<option value="'. $item->id .'">'.$item->name;
-      }
-      $this->content->text .= "</select>";
-    }
+        if($items != null){
+            $this->content->text .= 'Cover sheets for:<br/>'
+                                 .  '<select name="assignid">';
+            foreach($items as $item){
+                $this->content->text .='<option value="'. $item->id .'">'.$item->name;
+            }
+            $this->content->text .= "</select>";
+        }
 
     // get user
-    if($names!=null){
-      foreach($names as $name){
-	$user = $DB->get_record('user',array('id'=>$name->userid));
-	if ($course->id==30569){ // gensai literacy 2014
-	  $key1 = mb_substr(fullname($user),5); // cut year info as '2014-'
-	}else{
-	  $key1 = fullname($user); 
-	}
-	$tmparr1[$key1] = 
-	  '<input type="hidden" name="userids[]" value="' . $name->userid . '">' .
-	  '<input type="hidden" name="usernames[]" value="' . $user->username . '">' .
-	  '<input type="hidden" name="fullnames[]" value="'. fullname($user) . '">';
-      }
-      ksort($tmparr1);
-      foreach($tmparr1 as $hiddendat){
-	$this->content->text.= $hiddendat;
-      }
-
-      // paper size
-      if ( $this->config->sizeformat == PDF2_SUBMISSION_SIZE_FORMAT_A4){
-        $this->content->text.= '<input type="hidden" name="paper_size" value="A4">';
-      }else if( $this->config->sizeformat == PDF2_SUBMISSION_SIZE_FORMAT_B4){
-        $this->content->text.= '<input type="hidden" name="paper_size" value="B4">';
-      }else{
-        $this->content->text.= '<input type="hidden" name="paper_size" value="A4">';
-      }
-
-      // template PDF
-      if (!empty($this->config->templatepath)){
-      	$this->content->text.= '<input type="hidden" name="template_path" value="'.$this->config->templatepath.'">';
-      }
-
-      if ($this->config->qrnouserid){
-	$this->content->text.= '<input type="hidden" name="qrnouserid" value="1">';
-      }
-	  
-      $this->content->text.='<br/><input type="submit" value="Create"></form>';
+    if($names != null){
+        // paper size
+        switch ($this->config->sizeformat) {
+            default:  // default A4
+            case PDF2_SUBMISSION_SIZE_FORMAT_A4:
+                $this->content->text .= '<input type="hidden" name="paper_size" value="A4">';
+                break;
+                
+            case PDF2_SUBMISSION_SIZE_FORMAT_B4:
+                $this->content->text.= '<input type="hidden" name="paper_size" value="B4">';
+                break;
+        }
+        
+        // template PDF
+        if (!empty($this->config->templatepath)) {
+            $this->content->text .= '<input type="hidden" name="template_path" value="'.$this->config->templatepath.'">';
+        }
+        
+        if ($this->config->qrnouserid == 1){
+            $this->content->text .= '<input type="hidden" name="qrnouserid" value="1">';
+        }
+        
+        $this->content->text .= '<br/><input type="submit" value="Create"></form>';
     }
     $this->content->footer = ' ';
-
+    
     return $this->content;
-  }
-
-  /*
-  function cron(){
-    global $CFG, $DB;
-    include($CFG->dirroot.'/blocks/pdf2submission/pdfscan.php');
-    mtrace("...pdf2submission done\n");
-  }
-  */
+    }
 }
