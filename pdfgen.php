@@ -29,7 +29,7 @@ global $DB, $COURSE;
 
 // validation
 $assign = $DB->get_record('assign', array('id' => $assignid), '*', MUST_EXIST);
-$course = $DB->get_record('course', array('id' => $assign->course));
+$course = get_course($assign->course);
 // TODO: check course exist
 // TODO: check current user is course editing teacher
 
@@ -59,9 +59,12 @@ $users = $DB->get_records_sql('SELECT * FROM {role_assignments} AS ra
 
 $counter = 1;
 foreach ($users as $user) {
-    $objpdf->AddPage();
+    // exclude teachers
+    if (has_capability('mod/assignment:grade', $context)){
+        continue;
+    }
     
-    $fullname = fullname($user);
+    $objpdf->AddPage();
     
     // $template= '';
     if (file_exists($template)) {
@@ -93,7 +96,7 @@ foreach ($users as $user) {
     } else {
         $objpdf->Text(60,  7, $course->fullname);
         $objpdf->Text(60, 15, $assign->name);
-        $objpdf->Text(60, 23, $user->username."  ".$fullname);
+        $objpdf->Text(60, 23, $user->username."  ".fullname($user));
         
         $objpdf->SetXY(20, 5);
         // QRCODE,M : QR-CODE Medium error correction
@@ -104,11 +107,6 @@ foreach ($users as $user) {
     //  $pdf->Image("/tmp/pdfmake$i.png", ceil($minx+($size*0.3)), ceil($miny+($size*0.05)), ceil($size*$size*0.09));
     
     // get comment for the submitted assignment
-    //$cm = get_coursemodule_from_instance("assignment", $assignment->id, $course->id);
-    //$assignmentinstance = new assignment_base($cm->id, $assignment, $cm, $course);
-    //$submission = $assignmentinstance->get_submission($userid);
-    
-    //  $submission = $DB->get_record('assignment_submissions',array('assignment'=>$asno, 'userid'=>$userid));
     $submission = $DB->get_record('assign_submission', array('assignment'=>$assignid, 'userid'=>$user->id));
 
     @$comment = $submission->submissioncomment;

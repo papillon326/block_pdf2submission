@@ -295,6 +295,7 @@ function submit_file($filename, $currentfolder){
     if ($submissions) {
         $submission = reset($submissions);
         $submission->timemodified = time();
+        $submission->status = 'submitted';
         $result= $DB->update_record('assign_submission', $submission);
     } else {
         // from assign/locallib.php get_user_submission()
