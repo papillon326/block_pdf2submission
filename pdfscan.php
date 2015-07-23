@@ -7,7 +7,7 @@
 // ***** also edit $inputfolder in sn2.php ******
 $inputfolder= "/home/ec2-user/pdfs/";  // Where the PDF files are FIXME: configureable or upload by form
 
-//define('ONEPAGEFOREACH', true); // no multiple pages for each, that means if no QR in a page, that is marked as QRXX (QR recognition failure).
+//define('ONEPAGEFOREACH', 'd'); // no multiple pages for each, that means if no QR in a page, that is marked as QRXX (QR recognition failure).
 
 define('QRSN', 'QRSN'); // prefix for dummy userid
 global $gs_command, $convert_command, $zbarimg_command, $tmpd, $mailmsg;
@@ -180,7 +180,7 @@ function split_into_files_of_each_user($currentfolder, $origfile){
                     $pdf = new ConcatPdf();
                     $pdf->setFiles(array($lastQRfile, $filenamefull));
                     $pdf->concat();
-                    $pdf->Output($tmpcat1, 'I');
+                    $pdf->Output($tmpcat1, 'F');
                     
                     copy($tmpcat1, $lastQRfile);  unlink($tmpcat1);
                     // remove concatenated file (actually, moved to 'cat' folder) 
